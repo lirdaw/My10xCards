@@ -4,8 +4,9 @@
 
 ## Tripwires
 
-- **CI triggers on `master`; this repo's default branch is `main`** (@.github/workflows/ci.yml). Pushes to `main` will not run lint/build. Fix the workflow before treating CI as a merge gate.
-- **Secrets only via the Astro env schema.** `SUPABASE_URL` / `SUPABASE_KEY` are declared in `astro.config.mjs` (`env.schema`, `context: "server"`, `access: "secret"`) and imported from `astro:env/server` (see `src/lib/supabase.ts`). Never read them from `import.meta.env.*` — that path exposes them client-side.
+- **Pushes to `main` auto-deploy to production.** Cloudflare Workers Builds is wired to this repo's `main` branch and deploys to `https://10xcards.lirdaw.workers.dev` on every push (~2–4 min). Don't push WIP to `main`; open a PR instead. GitHub Actions (@.github/workflows/ci.yml) runs lint+build on push and PR as a merge gate; Cloudflare runs its own build for the actual deploy.
+- **Secrets only via the Astro env schema.** `SUPABASE_URL` / `SUPABASE_KEY` are declared in `astro.config.mjs` (`env.schema`, `context: "server"`, `access: "secret"`) and imported from `astro:env/server` (see `src/lib/supabase.ts`). Never `import.meta.env.*` (leaks client-side), never `Astro.locals.runtime.env.*` (removed in `@astrojs/cloudflare` v13), and never `import { env } from "cloudflare:workers"` (open bug withastro/astro#15237 around hybrid prerender + SSR).
+- **Logs: `npx wrangler tail` is the only free log channel.** Real-time stream, no retention — once a request completes, its log line is gone. Open the tail BEFORE reproducing a bug. Paid Workers Logs gives 7-day retention if needed later.
 - **`output: "server"`** in `astro.config.mjs`: dynamic-by-default. Static pages opt in with `export const prerender = true`. Do not add `prerender = false` to API routes — it's redundant noise.
 - **No Next.js directives.** `"use client"` / `"use server"` are meaningless in Astro. Hydrate React islands with `client:load` / `client:idle` / `client:visible` on the JSX tag.
 - **Tailwind class composition via `cn()`** from `@/lib/utils` (clsx + tailwind-merge). Never concatenate class strings manually.
